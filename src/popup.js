@@ -54,6 +54,10 @@ const elements = {
   statusMessage: document.getElementById("statusMessage")
 };
 
+// Playback state machine
+let localPlaybackState = "stopped"; // stopped | starting | playing | stopping
+let lastStartAt = 0;
+
 // 儲存目前頁面的資料
 let currentPageData = null;
 let currentTabId = null;
@@ -694,8 +698,10 @@ async function startMusicFromCurrentPageData() {
     throw new Error("Please Analyze Page first");
   }
 
-  elements.startBtn.disabled = true;
-  elements.stopBtn.disabled = true;
+  localPlaybackState = "starting";
+  lastStartAt = Date.now();
+  applyPlaybackUiState("start-request");
+  console.log("[PageSynth Popup] start entry: start-button");
 
   let startResponse = null;
   let watchdogTriggered = false;
@@ -705,8 +711,8 @@ async function startMusicFromCurrentPageData() {
     const synced = await syncPlaybackState();
     if (synced?.ok && synced?.isPlaying) {
       observedPlaying = true;
-      elements.startBtn.disabled = true;
-      elements.stopBtn.disabled = false;
+      localPlaybackState = "playing";
+      applyPlaybackUiState("start-watchdog");
       if (!isOneClickRunning) showStatus("🎵 Playing...", "success");
     }
   }, 1200);
@@ -724,30 +730,39 @@ async function startMusicFromCurrentPageData() {
       mode: currentMode
     }, 5000);
 
+    console.log("[PageSynth Popup] start response:", startResponse);
     if (startResponse?.ok === false && !startResponse?.stale) {
       const msg = startResponse.error === "offscreen not ready or missing"
         ? "Start failed: audio backend not ready. Try again."
         : `Start failed: ${startResponse.error}`;
       throw new Error(msg);
     }
+
+    // optimistic: start succeeded, set playing UI immediately
+    if (startResponse?.ok === true) {
+      localPlaybackState = "playing";
+      applyPlaybackUiState("start-ok");
+      if (!isOneClickRunning) showStatus("🎵 Playing...", "success");
+    }
   } finally {
     clearTimeout(startWatchdog);
   }
 
+  // async verify (best effort)
   const syncResult = await syncPlaybackState();
   if (syncResult?.ok && syncResult?.isPlaying) {
-    elements.startBtn.disabled = true;
-    elements.stopBtn.disabled = false;
+    localPlaybackState = "playing";
+    applyPlaybackUiState("start-sync-ok");
     return { ok: true, isPlaying: true };
   }
   if (startResponse?.ok === true && syncResult?.ok === false) {
-    elements.startBtn.disabled = true;
-    elements.stopBtn.disabled = false;
+    localPlaybackState = "playing";
+    applyPlaybackUiState("start-sync-fail-but-ok");
     return { ok: true, isPlaying: true };
   }
   if ((startResponse?.ok === false || startResponse?.timeout) && observedPlaying) {
-    elements.startBtn.disabled = true;
-    elements.stopBtn.disabled = false;
+    localPlaybackState = "playing";
+    applyPlaybackUiState("start-watchdog-saved");
     return { ok: true, isPlaying: true };
   }
   if (!watchdogTriggered && !syncResult?.ok) {
@@ -945,43 +960,87 @@ function hasPlayableCode() {
 function hasPlayableSource() {
   return Boolean(currentPageData) || hasPlayableCode();
 }
-function setStoppedUiState() {
+function applyPlaybackUiState(reason = "") {
+  if (reason) console.log("[PageSynth Popup] applyPlaybackUiState:", reason, localPlaybackState);
+
+  const hasCode = hasPlayableCode();
+  const hasSource = hasPlayableSource();
+
+  if (localPlaybackState === "starting") {
+    elements.startBtn.disabled = true;
+    elements.runCodeBtn.disabled = true;
+    elements.playPageBtn.disabled = true;
+    elements.stopBtn.disabled = false;
+    return;
+  }
+  if (localPlaybackState === "playing") {
+    elements.startBtn.disabled = true;
+    elements.runCodeBtn.disabled = true;
+    if (!isOneClickRunning) {
+      elements.playPageBtn.disabled = true;
+      elements.playPageBtn.innerHTML = '<span class="btn-icon">🎶</span> Playing...';
+    }
+    elements.stopBtn.disabled = false;
+    return;
+  }
+  if (localPlaybackState === "stopping") {
+    elements.startBtn.disabled = true;
+    elements.runCodeBtn.disabled = true;
+    elements.playPageBtn.disabled = true;
+    elements.stopBtn.disabled = true;
+    return;
+  }
+  // stopped
   elements.stopBtn.disabled = true;
-  elements.startBtn.disabled = !hasPlayableSource();
-  elements.runCodeBtn.disabled = !hasPlayableCode();
-  if (elements.playPageBtn && !isOneClickRunning) {
-    elements.playPageBtn.disabled = false;
+  elements.startBtn.disabled = !hasSource;
+  elements.runCodeBtn.disabled = !hasCode;
+  if (!isOneClickRunning) {
+    elements.playPageBtn.disabled = !hasSource;
     elements.playPageBtn.innerHTML = '<span class="btn-icon">🎶</span> Play This Page';
   }
 }
+
+// legacy aliases
+function setPlayingUiState(reason = "") { localPlaybackState = "playing"; applyPlaybackUiState(reason); }
+function setStoppedUiState(reason = "") { localPlaybackState = "stopped"; applyPlaybackUiState(reason); }
 
 /**
  * Stop Music - 停止播放音樂
  */
 elements.stopBtn.addEventListener("click", async () => {
   const reqId = ++playbackUiRequestId;
-  elements.startBtn.disabled = true;
-  elements.stopBtn.disabled = true;
-  elements.runCodeBtn.disabled = true;
+  localPlaybackState = "stopping";
+  applyPlaybackUiState("stop-request");
+  console.log("[PageSynth Popup] stop clicked");
   showStatus("⏹ Stopping...", "info");
   try {
     const stopResponse = await sendMessageSafe({ action: "stopMusic" }, 5000);
-    if (reqId !== playbackUiRequestId) return;
-    if (stopResponse.ok === true) {
-      setStoppedUiState();
+    if (reqId !== playbackUiRequestId) {
+      console.log("[PageSynth Popup] stop stale, still finalizing state");
+    }
+    if (stopResponse?.ok === true) {
+      localPlaybackState = "stopped";
+      applyPlaybackUiState("stop-ok");
       showStatus("⏹ Music stopped", "info");
     } else {
-      showStatus(`❌ Stop failed: ${stopResponse.error || "unknown"}`, "error");
+      // even on error response, mark stopped so UI recovers
+      localPlaybackState = "stopped";
+      applyPlaybackUiState("stop-error");
+      showStatus(`❌ Stop failed: ${stopResponse?.error || "unknown"}`, "error");
     }
   } catch (error) {
-    if (reqId !== playbackUiRequestId) return;
+    localPlaybackState = "stopped";
+    applyPlaybackUiState("stop-finally");
     showStatus(`❌ Stop failed: ${error.message || error}`, "error");
   }
-  // async verify state (best effort, don't block UI)
-  syncPlaybackState().catch(() => {});
+  // async verify (best effort, don't block UI)
+  console.log("[PageSynth Popup] stop response processed, final state:", localPlaybackState);
+  syncPlaybackState("bg-after-stop").catch(() => {});
 });
 
 elements.runCodeBtn.addEventListener("click", async () => {
+  if (localPlaybackState === "starting" || localPlaybackState === "playing" || localPlaybackState === "stopping") return;
+  console.log("[PageSynth Popup] start entry: run-code");
   try {
     const code = elements.liveCodeEditor.value;
     await applyLiveCode(code);
@@ -1035,8 +1094,10 @@ elements.generateCodeBtn?.addEventListener("click", async () => {
 });
 
 elements.playPageBtn?.addEventListener("click", async () => {
+  if (localPlaybackState === "starting" || localPlaybackState === "playing" || localPlaybackState === "stopping") return;
   if (isOneClickRunning) return;
   setOneClickRunning(true);
+  console.log("[PageSynth Popup] start entry: play-this-page");
   try {
     showStatus("Analyzing page...", "info");
     const pageData = await analyzeCurrentPage();
@@ -1091,32 +1152,52 @@ elements.playPageBtn?.addEventListener("click", async () => {
 showStatus("Click Analyze Page to get started", "info");
 
 // popup 開啟時同步播放狀態
-async function syncPlaybackState() {
-  console.log("[PageSynth Popup] syncing playback state");
+async function syncPlaybackState(tag = "") {
+  const syncReqId = ++playbackUiRequestId;
+  console.log("[PageSynth Popup] syncing playback state", tag);
+
+  // Don't let stale sync override recent start
+  const recentlyStarted = Date.now() - lastStartAt < 2500;
+  if ((localPlaybackState === "starting" || localPlaybackState === "playing") && recentlyStarted) {
+    applyPlaybackUiState("sync-guarded");
+    return { ok: true, isPlaying: true, isStopping: false };
+  }
   try {
     const response = await sendMessageSafe({ action: "GET_PLAYBACK_STATE" }, 2000);
     console.log("[PageSynth Popup] playback state response", response);
     if (!response.ok) {
-      setStoppedUiState();
+      if (syncReqId !== playbackUiRequestId) return { ok: false, reason: "stale request" };
+      localPlaybackState = "stopped"; applyPlaybackUiState("sync-fail");
       return { ok: false, reason: response.error || "sync failed" };
     }
 
-    const state = response.playbackState || { isPlaying: false };
-    if (state.isPlaying) {
-      elements.startBtn.disabled = true;
-      if (elements.playPageBtn && !isOneClickRunning) {
-        elements.playPageBtn.disabled = true;
-        elements.playPageBtn.innerHTML = '<span class="btn-icon">🎶</span> Playing...';
+    const state = response.playbackState || response || {};
+    const playing = Boolean(state.isPlaying ?? response?.isPlaying ?? false);
+    const stopping = Boolean(state.isStopping ?? response?.isStopping ?? false);
+    console.log("[PageSynth Popup] syncPlaybackState:", { isPlaying: playing, isStopping: stopping });
+
+    if (playing || stopping) {
+      if (syncReqId !== playbackUiRequestId) return { ok: false, reason: "stale request" };
+      // don't override if user already stopped
+      if (localPlaybackState === "stopping" || localPlaybackState === "stopped") {
+        console.log("[PageSynth Popup] ignore sync playing after user stop");
+        return { ok: true, isPlaying: playing, isStopping: stopping };
       }
-      elements.stopBtn.disabled = false;
+      localPlaybackState = "playing";
+      applyPlaybackUiState("sync-playing");
       showStatus("🎵 Playing music", "success");
     } else {
-      setStoppedUiState();
+      if (syncReqId !== playbackUiRequestId) return { ok: false, reason: "stale request" };
+      if (localPlaybackState !== "starting" && localPlaybackState !== "playing") {
+        localPlaybackState = "stopped";
+      }
+      applyPlaybackUiState("sync-stopped");
     }
-    return { ok: true, isPlaying: Boolean(state.isPlaying) };
+    return { ok: true, isPlaying: playing, isStopping: stopping };
   } catch (error) {
     console.log("[PageSynth Popup] sync timeout or failed", error);
-    setStoppedUiState();
+    if (syncReqId !== playbackUiRequestId) return { ok: false, reason: "stale request" };
+    if (localPlaybackState !== "starting" && localPlaybackState !== "playing") { localPlaybackState = "stopped"; } applyPlaybackUiState("sync-timeout");
     return { ok: false, reason: String(error.message || error) };
   }
 }
@@ -1161,7 +1242,7 @@ async function syncPlaybackState() {
     await sendMessageSafe({ action: "SET_LIVE_CODE_CONFIG", config: parsed });
 
     // restore button states after init
-    setStoppedUiState();
+    localPlaybackState = "stopped"; applyPlaybackUiState("init");
   } catch (error) {
     elements.liveCodeEditor.value = DEFAULT_LIVE_CODE;
     currentMode = MODE_HYBRID;

@@ -12,6 +12,7 @@ let isPlaying = false;
 let isStopping = false;
 let activeNodes = new Set();
 let scheduleInterval = null;
+let stopCleanupTimer = null;
 let currentStep = 0;
 let barIndex = 0;
 let currentConfig = null;
@@ -133,27 +134,51 @@ function playPianoNote(midi, time, dur) {
 function playBassNote(midi, time, dur) {
   if (!audioContext || !audioGraph) return;
   const ctx = audioContext;
-  const osc = ctx.createOscillator();
-  const sub = ctx.createOscillator();
-  const lp = ctx.createBiquadFilter();
-  const gain = ctx.createGain();
   const freq = midiToFreq(midi);
-  osc.type = "sine";
-  sub.type = "triangle";
-  lp.type = "lowpass";
-  lp.frequency.setValueAtTime(clamp(freq * 2.5, 300, 900), time);
-  lp.Q.value = 0.5;
-  const attack = 0.035;
-  gain.gain.setValueAtTime(0.0001, time);
-  gain.gain.linearRampToValueAtTime(0.18, time + attack);
-  gain.gain.exponentialRampToValueAtTime(0.06, time + dur * 0.55);
-  gain.gain.exponentialRampToValueAtTime(0.001, time + dur);
-  osc.frequency.setValueAtTime(freq, time);
-  sub.frequency.setValueAtTime(freq * 0.5, time);
-  osc.connect(lp); sub.connect(lp); lp.connect(gain); gain.connect(audioGraph.input);
-  osc.start(time); osc.stop(time + dur + 0.05);
-  sub.start(time); sub.stop(time + dur + 0.05);
-  registerNode(osc); registerNode(sub);
+  // main: triangle for pitch clarity
+  const osc1 = ctx.createOscillator();
+  osc1.type = "triangle";
+  osc1.frequency.setValueAtTime(freq, time);
+  const lp1 = ctx.createBiquadFilter();
+  lp1.type = "lowpass";
+  lp1.frequency.setValueAtTime(clamp(freq * 4, 1500, 2200), time);
+  lp1.Q.value = 0.35;
+  const gain1 = ctx.createGain();
+  gain1.gain.setValueAtTime(0.0001, time);
+  gain1.gain.linearRampToValueAtTime(0.12, time + 0.06);
+  gain1.gain.exponentialRampToValueAtTime(0.04, time + dur * 0.5);
+  gain1.gain.exponentialRampToValueAtTime(0.001, time + dur);
+  // octave-up layer: subtle triangle for pitch presence
+  const oscUp = ctx.createOscillator();
+  oscUp.type = "triangle";
+  oscUp.frequency.setValueAtTime(freq * 2, time);
+  const gainUp = ctx.createGain();
+  gainUp.gain.setValueAtTime(0.0001, time);
+  gainUp.gain.linearRampToValueAtTime(0.018, time + 0.06);
+  gainUp.gain.exponentialRampToValueAtTime(0.006, time + dur * 0.5);
+  gainUp.gain.exponentialRampToValueAtTime(0.001, time + dur);
+  // sub: sine, lower
+  const osc2 = ctx.createOscillator();
+  osc2.type = "sine";
+  osc2.frequency.setValueAtTime(freq * 0.5, time);
+  const gain2 = ctx.createGain();
+  gain2.gain.setValueAtTime(0.0001, time);
+  gain2.gain.linearRampToValueAtTime(0.06, time + 0.06);
+  gain2.gain.exponentialRampToValueAtTime(0.02, time + dur * 0.5);
+  gain2.gain.exponentialRampToValueAtTime(0.001, time + dur);
+  // highpass below 90Hz
+  const hp = ctx.createBiquadFilter();
+  hp.type = "highpass";
+  hp.frequency.setValueAtTime(90, time);
+  // mix
+  osc1.connect(lp1); lp1.connect(gain1); gain1.connect(hp);
+  oscUp.connect(gainUp); gainUp.connect(hp);
+  osc2.connect(gain2); gain2.connect(hp);
+  hp.connect(audioGraph.input);
+  osc1.start(time); osc1.stop(time + dur + 0.08);
+  oscUp.start(time); oscUp.stop(time + dur + 0.08);
+  osc2.start(time); osc2.stop(time + dur + 0.08);
+  registerNode(osc1); registerNode(oscUp); registerNode(osc2);
 }
 
 function playHiHat(time, velocity) {
@@ -221,6 +246,12 @@ function scheduleBar(stepDuration) {
     for (const s of bassSteps) {
       playBassNote(bassMidi, time + s * stepDuration, stepDuration * 0.55);
     }
+    if (!recoveryLogged) {
+      recoveryLogged = true;
+      const noteNames = ["C","C#","D","D#","E","F","F#","G","G#","A","A#","B"];
+      const noteName = noteNames[bassMidi % 12] + Math.floor(bassMidi / 12 - 1);
+      console.log("[PageSynth v2] bass note:", { chord, midi:bassMidi, freq:Math.round(midiToFreq(bassMidi)), noteName });
+    }
   }
 
   // hi-hat: only main/variation/return, and only if hat not all "-"
@@ -287,6 +318,7 @@ function hardStopAllAudio() {
   isPlaying = false;
   isStopping = false;
   if (scheduleInterval) { clearInterval(scheduleInterval); scheduleInterval = null; }
+  if (stopCleanupTimer) { clearTimeout(stopCleanupTimer); stopCleanupTimer = null; }
   activeNodes.forEach(n => {
     try { if (typeof n.stop === "function") n.stop(0); } catch (_) {}
     try { n.disconnect(); } catch (_) {}
@@ -299,10 +331,11 @@ function hardStopAllAudio() {
   audioGraph = null;
   sectionLogged = null;
   recoveryLogged = false;
-  console.log("[PageSynth v2] hard stopped");
+  console.log("[PageSynth v2] hard stop complete");
 }
 
 function smoothStopAllAudio() {
+  console.log("[PageSynth v2] smooth stop start");
   if (isStopping) return;
   if (!audioContext || !audioGraph || audioContext.state === "closed") {
     hardStopAllAudio();
@@ -310,17 +343,19 @@ function smoothStopAllAudio() {
   }
   isStopping = true;
   isPlaying = false;
+  if (stopCleanupTimer) { clearTimeout(stopCleanupTimer); stopCleanupTimer = null; }
   if (scheduleInterval) { clearInterval(scheduleInterval); scheduleInterval = null; }
-  console.log("[PageSynth v2] smooth stop start");
   const now = audioContext.currentTime;
   const fadeDuration = 1.2;
   try {
+    const current = Math.max(0.0001, audioGraph.masterGain.gain.value || 0.72);
     audioGraph.masterGain.gain.cancelScheduledValues(now);
-    audioGraph.masterGain.gain.setValueAtTime(0.72, now);
+    audioGraph.masterGain.gain.setValueAtTime(current, now);
     audioGraph.masterGain.gain.linearRampToValueAtTime(0.0001, now + fadeDuration);
   } catch (_) {}
-  setTimeout(() => {
-    if (isStopping) { hardStopAllAudio(); console.log("[PageSynth v2] fade-out complete"); }
+  stopCleanupTimer = setTimeout(() => {
+    stopCleanupTimer = null;
+    hardStopAllAudio();
   }, (fadeDuration + 0.15) * 1000);
 }
 
@@ -331,30 +366,74 @@ function stopMusic() { stopAllAudio(); }
 // Message Listener
 // ============================================
 chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
-  if (!request || !request.action) return false;
-  switch (request.action) {
-    case "startMusic": case "START_MUSIC":
-      (async () => {
-        try {
-          if (!request.pageData) { sendResponse({ ok:false, error:"Missing pageData" }); return; }
-          if (request.liveCodeConfig) currentConfig = request.liveCodeConfig;
-          const result = startMusic(currentConfig);
-          sendResponse({ ok:true, isPlaying:true });
-        } catch (e) { sendResponse({ ok:false, error:String(e.message||e) }); }
-      })();
-      return true;
-    case "stopMusic": case "STOP_MUSIC":
-      try { stopAllAudio(); sendResponse({ ok:true, stopped:true }); } catch (e) { sendResponse({ ok:false, error:String(e.message||e) }); }
-      return true;
-    case "PING_OFFSCREEN":
-      sendResponse({ ok:true, ready:true, isPlaying }); return false;
-    case "GET_PLAYBACK_STATE":
-      sendResponse({ ok:true, playbackState:{ isPlaying, isStopping } }); return false;
-    case "SET_LIVE_CODE_CONFIG":
-      try { currentConfig = request.config||null; sendResponse({ ok:true }); } catch (e) { sendResponse({ ok:false, error:String(e.message||e) }); }
-      return false;
-    default: return false;
-  }
-});
+  console.log("[PageSynth v2] raw message:", JSON.stringify(request));
+  const msgType = request?.action || request?.type || request?.command || "";
+  console.log("[PageSynth v2] message type:", msgType);
 
-console.log("[PageSynth v2] ready");
+  const startAliases = ["startMusic","START_MUSIC","START_AUDIO","START","PLAY","playMusic"];
+
+  const stopAliases = [
+    "stopMusic","STOP_MUSIC","STOP_AUDIO","STOP",
+    "STOP_ALL_AUDIO","stop","stop_audio","STOP_AUDIO_ALL"
+  ];
+  if (stopAliases.includes(msgType)) {
+    console.log("[PageSynth v2] STOP received via:", msgType);
+    stopAllAudio();
+    sendResponse({ ok:true, stopped:true, isPlaying:false, isStopping:true });
+    return true;
+  }
+
+  if (startAliases.includes(msgType)) {
+    console.log("[PageSynth v2] START received via:", msgType);
+    (async () => {
+      try {
+        if (!request.pageData) {
+          console.error("[PageSynth v2] START missing pageData");
+          sendResponse({ ok:false, error:"Missing pageData" });
+          return;
+        }
+        if (request.liveCodeConfig) {
+          currentConfig = request.liveCodeConfig;
+          console.log("[PageSynth v2] using liveCodeConfig from request");
+        } else {
+          console.log("[PageSynth v2] no liveCodeConfig in request, using currentConfig:", !!currentConfig);
+        }
+        console.log("[PageSynth v2] config keys:", Object.keys(currentConfig||{}));
+        const result = startMusic(currentConfig);
+        console.log("[PageSynth v2] startMusic returned:", result);
+        sendResponse({
+          ok: true,
+          started: true,
+          isPlaying: true,
+          playbackState: { isPlaying: true, isStopping: false }
+        });
+      } catch (e) {
+        console.error("[PageSynth v2] START failed:", e);
+        sendResponse({ ok: false, error: String(e?.message || e) });
+      }
+    })();
+    return true;
+  }
+
+  if (msgType === "PING_OFFSCREEN") {
+    sendResponse({ ok: true, ready: true, isPlaying });
+    return false;
+  }
+  if (msgType === "GET_PLAYBACK_STATE") {
+    sendResponse({ ok: true, playbackState:{ isPlaying, isStopping }, isPlaying, isStopping });
+    return false;
+  }
+  if (msgType === "SET_LIVE_CODE_CONFIG") {
+    try {
+      currentConfig = request.config || null;
+      console.log("[PageSynth v2] config set from SET_LIVE_CODE_CONFIG:", Object.keys(currentConfig||{}));
+      sendResponse({ ok: true });
+    } catch (e) {
+      sendResponse({ ok: false, error: String(e.message || e) });
+    }
+    return false;
+  }
+
+  console.log("[PageSynth v2] unhandled message:", msgType);
+  return false;
+});
