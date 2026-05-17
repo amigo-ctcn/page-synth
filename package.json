@@ -1,0 +1,9 @@
+{
+  "name": "page-synth",
+  "version": "1.0.0",
+  "description": "Chrome Extension - 將網頁資料轉換成 Web Audio 音樂",
+  "private": true,
+  "scripts": {
+    "lint": "echo 'No build step required - pure HTML/CSS/JS'"
+  }
+}

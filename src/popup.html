@@ -1,0 +1,137 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>PageSynth</title>
+  <link rel="stylesheet" href="popup.css">
+</head>
+<body>
+  <div class="container">
+    <!-- 標題區域 -->
+    <header class="header">
+      <div class="logo">
+        <span class="logo-icon">🎵</span>
+        <h1>PageSynth</h1>
+      </div>
+      <p class="subtitle">Turn this page into music</p>
+    </header>
+
+    <!-- Live Code 區域 (v1.2: 移到最上方) -->
+    <section class="live-code-section">
+      <h2 class="section-title">📝 Current Live Code</h2>
+      <div class="mode-row">
+        <label for="modeSelect" class="mode-label">Mode</label>
+        <select id="modeSelect" class="mode-select">
+          <option value="pageData">Use Page Data</option>
+          <option value="hybrid">Use Hybrid Code</option>
+        </select>
+        <label for="presetSelect" class="mode-label">Preset</label>
+        <select id="presetSelect" class="mode-select">
+          <option value="auto">Auto</option>
+          <option value="warmClean">Warm Clean</option>
+          <option value="pianoPopFlow">PianoPop Flow</option>
+          <option value="pianoPopSoft">PianoPop Soft</option>
+          <option value="pianoPopStory">PianoPop Story</option>
+          <option value="pianoPopMotion">PianoPop Motion</option>
+          <option value="storyPiano">Story Piano</option>
+          <option value="studyWarm">Study Warm</option>
+          <option value="foodLifeWarm">Food Life Warm</option>
+          <option value="minimalWarm">Minimal Warm</option>
+        </select>
+      </div>
+      <p class="preset-hint">Choose a preset, then Generate From Page or Play This Page.</p>
+      <div id="presetDescription" class="preset-description"></div>
+      <textarea id="liveCodeEditor" class="live-code-editor" spellcheck="false"></textarea>
+      <div class="live-code-actions">
+        <button id="generateCodeBtn" class="btn btn--secondary">Generate From Page</button>
+        <button id="runCodeBtn" class="btn btn--primary">Run Code</button>
+        <button id="resetCodeBtn" class="btn btn--danger">Reset Code</button>
+      </div>
+    </section>
+
+    <!-- 播放控制區域 (v1.2: 第二順位) -->
+    <section class="controls">
+      <button id="playPageBtn" class="btn btn--hero">
+        <span class="btn-icon">🎶</span>
+        Play This Page
+      </button>
+      <div class="playback-row">
+        <button id="analyzeBtn" class="btn btn--primary">
+          <span class="btn-icon">🔍</span>
+          Analyze
+        </button>
+        <button id="startBtn" class="btn btn--success" disabled>
+          <span class="btn-icon">▶</span>
+          Start
+        </button>
+        <button id="stopBtn" class="btn btn--danger" disabled>
+          <span class="btn-icon">⏹</span>
+          Stop
+        </button>
+      </div>
+    </section>
+
+    <!-- 狀態訊息 -->
+    <div id="statusMessage" class="status-message"></div>
+
+    <!-- Formula Summary (v1.4B) -->
+    <section class="formula-section">
+      <h2 class="section-title">🎼 Music Formula</h2>
+      <p class="formula-hint">PageSynth uses simple musical formulas rather than freeform AI composition.</p>
+      <div id="formulaSummary" class="formula-grid">
+        <div class="formula-row"><span class="formula-label">Style</span><span id="formulaStyle" class="formula-value">—</span></div>
+        <div class="formula-row"><span class="formula-label">Preset</span><span id="formulaPreset" class="formula-value">—</span></div>
+        <div class="formula-row"><span class="formula-label">Chords</span><span id="formulaChords" class="formula-value">—</span></div>
+        <div class="formula-row"><span class="formula-label">Key / Scale</span><span id="formulaKey" class="formula-value">—</span></div>
+        <div class="formula-row"><span class="formula-label">Arp</span><span id="formulaArp" class="formula-value">—</span></div>
+        <div class="formula-row"><span class="formula-label">Bass</span><span id="formulaBass" class="formula-value">—</span></div>
+        <div class="formula-row"><span class="formula-label">Hi-hat</span><span id="formulaHH" class="formula-value">—</span></div>
+        <div class="formula-row"><span class="formula-label">Song Form</span><span id="formulaForm" class="formula-value">—</span></div>
+      </div>
+    </section>
+
+    <!-- 頁面統計 (v1.2: 移到最下方) -->
+    <section class="stats-section">
+      <h2 class="section-title">📊 Page Summary</h2>
+      <div id="statsContainer" class="stats-grid">
+        <div class="stat-card">
+          <span class="stat-label">Title</span>
+          <span id="pageTitle" class="stat-value stat-value--text">-</span>
+        </div>
+        <div class="stat-card">
+          <span class="stat-label">URL</span>
+          <span id="pageUrl" class="stat-value stat-value--text stat-value--url">-</span>
+        </div>
+        <div class="stat-card">
+          <span class="stat-label">Words</span>
+          <span id="wordCount" class="stat-value">-</span>
+        </div>
+        <div class="stat-card">
+          <span class="stat-label">Chars</span>
+          <span id="charCount" class="stat-value">-</span>
+        </div>
+        <div class="stat-card">
+          <span class="stat-label">DOM</span>
+          <span id="domCount" class="stat-value">-</span>
+        </div>
+        <div class="stat-card">
+          <span class="stat-label">Links</span>
+          <span id="linkCount" class="stat-value">-</span>
+        </div>
+        <div class="stat-card">
+          <span class="stat-label">Images</span>
+          <span id="imageCount" class="stat-value">-</span>
+        </div>
+      </div>
+      <span id="paramBpm" style="display:none"></span>
+      <span id="paramDensity" style="display:none"></span>
+      <span id="paramPitch" style="display:none"></span>
+      <span id="paramFilter" style="display:none"></span>
+    </section>
+
+  </div>
+
+  <script src="popup.js"></script>
+</body>
+</html>

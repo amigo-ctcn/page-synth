@@ -1,0 +1,26 @@
+{
+  "manifest_version": 3,
+  "name": "PageSynth",
+  "version": "1.0.0",
+  "description": "將網頁資料轉換成 Web Audio 音樂的 Chrome Extension",
+  "permissions": [
+    "activeTab",
+    "scripting",
+    "storage",
+    "offscreen"
+  ],
+  "background": {
+    "service_worker": "src/background.js"
+  },
+  "action": {
+    "default_popup": "src/popup.html",
+    "default_title": "PageSynth"
+  },
+  "content_scripts": [
+    {
+      "matches": ["<all_urls>"],
+      "js": ["src/content.js"],
+      "run_at": "document_idle"
+    }
+  ]
+}

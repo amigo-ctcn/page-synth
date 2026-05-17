@@ -1,0 +1,533 @@
+/* ============================================
+   popup.css - PageSynth 彈出視窗樣式
+   ============================================ */
+
+/* 全域重置與基礎設定 */
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+:root {
+  /* 色彩系統 - 深色主題 */
+  --bg-primary: #0f0f1a;
+  --bg-secondary: #1a1a2e;
+  --bg-card: #16213e;
+  --bg-card-hover: #1c2a4a;
+  --text-primary: #e8e8f0;
+  --text-secondary: #a0a0b8;
+  --text-muted: #6c6c8a;
+  --accent-primary: #6c63ff;
+  --accent-secondary: #00d4aa;
+  --accent-warning: #ff6b6b;
+  --accent-info: #4fc3f7;
+  --border-color: #2a2a4a;
+  --shadow-color: rgba(108, 99, 255, 0.15);
+
+  /* 尺寸 */
+  --popup-width: 380px;
+  --popup-min-height: 480px;
+  --border-radius: 12px;
+  --border-radius-sm: 8px;
+}
+
+body {
+  width: var(--popup-width);
+  min-height: var(--popup-min-height);
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen,
+    Ubuntu, Cantarell, sans-serif;
+  background: var(--bg-primary);
+  color: var(--text-primary);
+  line-height: 1.5;
+  overflow-x: hidden;
+}
+
+.container {
+  padding: 20px;
+}
+
+/* ============================================
+   標題區域
+   ============================================ */
+.header {
+  text-align: center;
+  margin-bottom: 20px;
+  padding-bottom: 16px;
+  border-bottom: 1px solid var(--border-color);
+}
+
+.logo {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  margin-bottom: 4px;
+}
+
+.logo-icon {
+  font-size: 28px;
+  animation: pulse 2s ease-in-out infinite;
+}
+
+@keyframes pulse {
+  0%, 100% { transform: scale(1); }
+  50% { transform: scale(1.1); }
+}
+
+h1 {
+  font-size: 24px;
+  font-weight: 700;
+  background: linear-gradient(135deg, var(--accent-primary), var(--accent-secondary));
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+
+.subtitle {
+  font-size: 13px;
+  color: var(--text-secondary);
+  margin-top: 4px;
+}
+
+.quick-play-section {
+  margin-bottom: 16px;
+}
+
+.btn--hero {
+  background: linear-gradient(135deg, #5a7bff, #00d4aa);
+  font-size: 15px;
+  font-weight: 700;
+  padding: 13px 16px;
+  box-shadow: 0 6px 16px rgba(0, 212, 170, 0.22);
+}
+
+.btn--hero:not(:disabled):hover {
+  background: linear-gradient(135deg, #6b8aff, #17dfb7);
+}
+
+/* ============================================
+   區塊標題
+   ============================================ */
+.section-title {
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--text-secondary);
+  margin-bottom: 12px;
+  padding-bottom: 6px;
+  border-bottom: 1px solid var(--border-color);
+}
+
+/* ============================================
+   統計資料網格
+   ============================================ */
+.stats-section {
+  margin-bottom: 16px;
+}
+
+.stats-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+}
+
+.stat-card {
+  background: var(--bg-card);
+  border: 1px solid var(--border-color);
+  border-radius: var(--border-radius-sm);
+  padding: 10px 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  transition: all 0.2s ease;
+}
+
+.stat-card:hover {
+  background: var(--bg-card-hover);
+  border-color: var(--accent-primary);
+  box-shadow: 0 2px 8px var(--shadow-color);
+}
+
+/* 標題和網址佔滿整行 */
+.stat-card:first-child,
+.stat-card:nth-child(2) {
+  grid-column: 1 / -1;
+}
+
+.stat-label {
+  font-size: 11px;
+  font-weight: 500;
+  color: var(--text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.stat-value {
+  font-size: 18px;
+  font-weight: 700;
+  color: var(--accent-secondary);
+  font-variant-numeric: tabular-nums;
+}
+
+.stat-value--text {
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--text-primary);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.stat-value--url {
+  font-size: 11px;
+  color: var(--accent-info);
+  word-break: break-all;
+  white-space: normal;
+}
+
+/* ============================================
+   音樂參數區域
+   ============================================ */
+.params-section {
+  margin-bottom: 16px;
+}
+
+.live-code-section {
+  margin-bottom: 16px;
+}
+
+.mode-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 8px;
+}
+
+.mode-label {
+  font-size: 12px;
+  color: var(--text-secondary);
+  min-width: 42px;
+}
+
+.mode-select {
+  flex: 1;
+  padding: 7px 10px;
+  border-radius: var(--border-radius-sm);
+  border: 1px solid var(--border-color);
+  background: #0c1326;
+  color: var(--text-primary);
+  font-size: 12px;
+  outline: none;
+}
+
+.mode-select:focus {
+  border-color: var(--accent-primary);
+  box-shadow: 0 0 0 2px rgba(108, 99, 255, 0.22);
+}
+
+.live-code-editor {
+  width: 100%;
+  min-height: 140px;
+  resize: vertical;
+  padding: 10px 12px;
+  border-radius: var(--border-radius-sm);
+  border: 1px solid var(--border-color);
+  background: #0c1326;
+  color: var(--text-primary);
+  font-family: Consolas, 'Courier New', monospace;
+  font-size: 12px;
+  line-height: 1.5;
+  outline: none;
+}
+
+.live-code-editor:focus {
+  border-color: var(--accent-primary);
+  box-shadow: 0 0 0 2px rgba(108, 99, 255, 0.25);
+}
+
+.live-code-actions {
+  display: grid;
+  grid-template-columns: 1fr 1fr 1fr;
+  gap: 8px;
+  margin-top: 8px;
+}
+
+.params-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+}
+
+.param-item {
+  background: var(--bg-card);
+  border: 1px solid var(--border-color);
+  border-radius: var(--border-radius-sm);
+  padding: 10px 12px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+  transition: all 0.2s ease;
+}
+
+.param-item:hover {
+  background: var(--bg-card-hover);
+  border-color: var(--accent-secondary);
+}
+
+.param-label {
+  font-size: 11px;
+  font-weight: 500;
+  color: var(--text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.param-value {
+  font-size: 16px;
+  font-weight: 700;
+  color: var(--accent-primary);
+}
+
+/* ============================================
+   按鈕區域
+   ============================================ */
+.controls {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin-bottom: 12px;
+}
+
+.btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  width: 100%;
+  padding: 12px 16px;
+  border: none;
+  border-radius: var(--border-radius-sm);
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  color: white;
+}
+
+.btn:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+  transform: none !important;
+  box-shadow: none !important;
+}
+
+.btn:not(:disabled):hover {
+  transform: translateY(-1px);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+}
+
+.btn:not(:disabled):active {
+  transform: translateY(0);
+}
+
+.btn-icon {
+  font-size: 16px;
+}
+
+.btn--primary {
+  background: linear-gradient(135deg, var(--accent-primary), #8b83ff);
+}
+
+.btn--primary:not(:disabled):hover {
+  background: linear-gradient(135deg, #7b73ff, #9c94ff);
+}
+
+.btn--success {
+  background: linear-gradient(135deg, var(--accent-secondary), #00e6bb);
+}
+
+.btn--success:not(:disabled):hover {
+  background: linear-gradient(135deg, #00e6bb, #00ffcc);
+}
+
+.btn--danger {
+  background: linear-gradient(135deg, var(--accent-warning), #ff8a8a);
+}
+
+.btn--danger:not(:disabled):hover {
+  background: linear-gradient(135deg, #ff8a8a, #ffa0a0);
+}
+
+.btn--secondary {
+  background: linear-gradient(135deg, #3b6ad9, #5b86f2);
+}
+
+.btn--secondary:not(:disabled):hover {
+  background: linear-gradient(135deg, #4a77e0, #6a92ff);
+}
+
+/* ============================================
+   狀態訊息
+   ============================================ */
+.status-message {
+  text-align: center;
+  font-size: 12px;
+  color: var(--text-muted);
+  min-height: 18px;
+  padding: 4px 0;
+  transition: all 0.3s ease;
+}
+
+.status-message--success {
+  color: var(--accent-secondary);
+}
+
+.status-message--error {
+  color: var(--accent-warning);
+}
+
+.status-message--info {
+  color: var(--accent-info);
+}
+
+/* ============================================
+   載入動畫
+   ============================================ */
+@keyframes spin {
+  to { transform: rotate(360deg); }
+}
+
+.loading {
+  display: inline-block;
+  width: 14px;
+  height: 14px;
+  border: 2px solid var(--text-muted);
+  border-top-color: var(--accent-primary);
+  border-radius: 50%;
+  animation: spin 0.6s linear infinite;
+  margin-right: 6px;
+  vertical-align: middle;
+}
+
+/* v1.4B Formula Summary */
+.formula-section {
+  margin: 6px 0;
+}
+.formula-hint {
+  font-size: 10px;
+  color: var(--text-muted);
+  margin: 2px 0 6px 0;
+  font-style: italic;
+}
+.formula-grid {
+  background: var(--bg-card);
+  border: 1px solid var(--border-color);
+  border-radius: var(--border-radius-sm);
+  padding: 8px 10px;
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+.formula-row {
+  display: flex;
+  gap: 8px;
+  font-size: 11px;
+}
+.formula-label {
+  color: var(--text-muted);
+  min-width: 62px;
+  text-transform: uppercase;
+  font-size: 10px;
+  letter-spacing: 0.3px;
+  flex-shrink: 0;
+}
+.formula-value {
+  color: var(--text-secondary);
+  font-weight: 500;
+}
+.formula-value:empty::after,
+.formula-value:contains("—") {
+  color: var(--text-muted);
+}
+.preset-hint {
+  font-size: 11px;
+  color: var(--text-muted);
+  margin: 4px 0 6px 0;
+  padding-left: 2px;
+}
+.preset-description {
+  background: var(--bg-card);
+  border: 1px solid var(--border-color);
+  border-radius: var(--border-radius-sm);
+  padding: 8px 10px;
+  margin: 6px 0 6px 0;
+  font-size: 12px;
+  line-height: 1.4;
+  color: var(--text-secondary);
+}
+.preset-guide-title {
+  font-weight: 600;
+  font-size: 13px;
+  color: var(--text-primary);
+  margin-bottom: 2px;
+}
+.preset-guide-desc {
+  margin-bottom: 6px;
+  opacity: 0.9;
+}
+.preset-guide-grid {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  margin-bottom: 4px;
+}
+.preset-guide-row {
+  display: flex;
+  gap: 6px;
+}
+.preset-guide-label {
+  color: var(--text-muted);
+  min-width: 52px;
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.4px;
+}
+.preset-guide-value {
+  color: var(--text-secondary);
+  font-size: 11px;
+}
+.preset-guide-notes {
+  margin-top: 4px;
+  color: var(--text-muted);
+  font-size: 11px;
+  font-style: italic;
+  border-top: 1px solid var(--border-color);
+  padding-top: 4px;
+}
+.playback-row {
+  display: flex;
+  gap: 6px;
+  margin-top: 8px;
+}
+.playback-row .btn {
+  flex: 1;
+  font-size: 12px;
+  padding: 6px 4px;
+}
+.controls .btn--hero {
+  width: 100%;
+  margin-bottom: 6px;
+}
+.stats-section {
+  opacity: 0.78;
+}
+.stats-section .stat-card {
+  padding: 6px 8px;
+}
+.stats-section .stat-label {
+  font-size: 10px;
+}
+.stats-section .stat-value {
+  font-size: 12px;
+}
