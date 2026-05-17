@@ -186,6 +186,7 @@ async function handleStartMusic(request) {
     }
 
     if (!offscreenResult.ok) {
+      console.error("[PageSynth BG] offscreen START failed:", offscreenResult.error || offscreenResult);
       if (offscreenResult?.stale === true) {
         console.log("[PageSynth BG] stale start ignored");
         return { ok: true, stale: true, ignored: true, playbackState, isPlaying: true };
